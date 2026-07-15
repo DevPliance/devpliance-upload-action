@@ -1,0 +1,24 @@
+name: 'DevPlace Upload Action'
+description: 'Upload data to your DevPlace app directly from CI/CD'
+author: 'DevPlace'
+
+inputs:
+  message:
+    description: 'A message to print out (placeholder input for now — will become the data payload)'
+    required: true
+    default: 'Hello from DevPlace!'
+  api-key:
+    description: 'DevPlace API key used to authenticate the upload (not used yet, reserved for the real upload step)'
+    required: false
+
+outputs:
+  result:
+    description: 'The value that was printed/processed by the action'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
+
+branding:
+  icon: 'upload-cloud'
+  color: 'purple'

@@ -1,0 +1,25 @@
+name: Test action
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  self-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Run the action against itself using a relative path (`./`)
+      # so every push verifies the built dist/index.js still works.
+      - name: Run local action
+        id: devplace
+        uses: ./
+        with:
+          message: 'Hello from the self-test workflow!'
+
+      - name: Check output
+        run: |
+          echo "Action returned: ${{ steps.devplace.outputs.result }}"
