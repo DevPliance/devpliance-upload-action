@@ -7,15 +7,52 @@ repository from a bundled template pack. That folder holds the pack config
 and control-catalogue mappings used to collect compliance evidence from your
 gitops process and upload it to your system of record for review.
 
-## Installation
+Requires Node.js >= 18.
+
+## Build & add `devpliance` to your PATH (for local testing)
+
+This CLI is the `cli/` package of the [devpliance-upload-action](../) monorepo. To try it as the
+real `devpliance` command while developing:
 
 ```bash
+# from the repo root — installs the workspace (this CLI + the action)
 npm install
-npm run build
-npm link   # optional: makes the `devpliance` command available globally
+
+# build this CLI (compiles TypeScript + copies the template pack into cli/dist)
+npm run build:cli          # or, from the cli/ folder: npm run build
+
+# put `devpliance` on your PATH, pointing at the build you just made
+cd cli
+npm link
 ```
 
-Requires Node.js >= 18.
+`npm link` drops a `devpliance` shim into your global npm bin directory (already on your PATH), so
+the command works from any folder. Verify:
+
+```bash
+devpliance --help
+which devpliance           # macOS/Linux   ·   Windows: where devpliance  (or  Get-Command devpliance)
+```
+
+After editing the source, just re-run `npm run build` (in `cli/`) — the linked command points at
+`dist/`, so it picks up the new build automatically.
+
+Remove the link when you're done:
+
+```bash
+npm rm -g devpliance       # (equivalently: npm unlink -g devpliance)
+```
+
+### Run it without touching your PATH
+
+If you'd rather not link globally:
+
+```bash
+# from the cli/ folder
+npm run dev  -- submit     # runs straight from TypeScript via tsx (no build step)
+npm start    -- submit     # runs the compiled cli/dist/index.js (after npm run build)
+node dist/index.js submit  # the built entry point directly
+```
 
 ## Usage
 
@@ -80,14 +117,6 @@ Packages the `.devpliance/` folder into a gzip-compressed tar archive
 `<base_url>/api/v1/submissions`, authenticated with your stored API secret as
 a bearer token. Requires `devpliance login` and a `.devpliance/` folder
 (`devpliance init`) — it refuses to run without either.
-
-## Development
-
-```bash
-npm run dev     # run the CLI from source with tsx
-npm run build   # compile TypeScript to dist/
-npm start       # run the compiled CLI from dist/
-```
 
 ## Format stability
 
