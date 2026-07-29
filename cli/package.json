@@ -1,0 +1,36 @@
+{
+  "name": "devpliance",
+  "version": "0.1.0",
+  "description": "Collect compliance evidence from your gitops process.",
+  "type": "module",
+  "bin": {
+    "devpliance": "./dist/index.js"
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./archive": {
+      "types": "./dist/lib/archive.d.ts",
+      "default": "./dist/lib/archive.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc && node scripts/copy-assets.mjs",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "picocolors": "^1.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

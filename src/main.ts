@@ -1,9 +1,10 @@
 import * as core from '@actions/core';
 import { stat } from 'node:fs/promises';
-import { createTarGz } from './archive';
+import { createTarGz } from 'devpliance/archive';
 
-// Self-contained: packages the .devpliance/ evidence folder (see ./archive) and uploads it as a
-// multipart POST to /api/v1/submissions — the same request the devpliance CLI's `submit` makes.
+// Monorepo: this action reuses the devpliance CLI (the `cli/` package in this repo) — it imports the
+// CLI's own tar.gz builder and uploads the archive as a multipart POST to /api/v1/submissions, the
+// same request `devpliance submit` makes. Single source of truth, no copy.
 async function run(): Promise<void> {
   try {
     const apiUrl = core.getInput('api-url', { required: true }).replace(/\/+$/, '');
