@@ -1,4 +1,8 @@
 node_modules/
-lib/
+/lib/
 *.log
 .DS_Store
+
+# CLI build output (built on demand / on npm publish). The action's own dist/ IS committed
+# (GitHub requires the bundled action), so only the CLI's dist is ignored.
+cli/dist/

@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
     "target": "ES2021",
-    "module": "commonjs",
-    "moduleResolution": "node",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "outDir": "./lib",
     "rootDir": "./src",
     "strict": true,
@@ -11,5 +11,5 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true
   },
-  "exclude": ["node_modules", "dist", "lib"]
+  "exclude": ["node_modules", "dist", "lib", "cli"]
 }

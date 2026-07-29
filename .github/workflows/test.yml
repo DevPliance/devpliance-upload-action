@@ -7,19 +7,20 @@ on:
     branches: [main]
 
 jobs:
-  self-test:
+  build-check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      # Run the action against itself using a relative path (`./`)
-      # so every push verifies the built dist/index.js still works.
-      - name: Run local action
-        id: devplace
-        uses: ./
+      - uses: actions/setup-node@v4
         with:
-          message: 'Hello from the self-test workflow!'
-
-      - name: Check output
+          node-version: '20'
+      - run: npm ci
+      - run: npm run build
+      # The action runs from the committed bundle, so it must match the current src/.
+      - name: Verify dist/index.js is up to date with src/
         run: |
-          echo "Action returned: ${{ steps.devplace.outputs.result }}"
+          if [ -n "$(git status --porcelain dist/index.js)" ]; then
+            echo "::error::dist/index.js is out of date — run 'npm run build' and commit the result."
+            git --no-pager diff dist/index.js
+            exit 1
+          fi

@@ -1,19 +1,24 @@
-name: 'DevPlace Upload Action'
-description: 'Upload data to your DevPlace app directly from CI/CD'
-author: 'DevPlace'
+name: 'DevPliance Upload'
+description: 'Upload .devpliance compliance evidence to DevPliance from CI/CD'
+author: 'DevPliance'
 
 inputs:
-  message:
-    description: 'A message to print out (placeholder input for now — will become the data payload)'
+  api-url:
+    description: 'DevPliance API base URL for your instance, e.g. https://acme.devpliance.com'
     required: true
-    default: 'Hello from DevPlace!'
   api-key:
-    description: 'DevPlace API key used to authenticate the upload (not used yet, reserved for the real upload step)'
+    description: 'Repository API key from the DevPliance dashboard (dp_key_...)'
+    required: true
+  evidence-dir:
+    description: 'Path to the .devpliance evidence directory'
     required: false
+    default: '.devpliance'
 
 outputs:
-  result:
-    description: 'The value that was printed/processed by the action'
+  controls:
+    description: 'Comma-separated control ids captured from the upload'
+  controls-parsed:
+    description: 'Number of controls captured'
 
 runs:
   using: 'node20'
