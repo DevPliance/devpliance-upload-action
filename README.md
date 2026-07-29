@@ -1,57 +1,54 @@
-# DevPlace Upload Action
+# DevPliance Upload Action
 
-A GitHub Action to upload data to your [DevPlace](#) app directly from CI/CD.
+A GitHub Action that uploads your `.devpliance/` compliance evidence to DevPliance from CI/CD.
 
-> **Status:** early scaffold. Right now this action just reads the `message`
-> input and prints it out / returns it as an output. The real HTTP upload to
-> the DevPlace API will replace the placeholder logic in `src/main.ts`.
+It does exactly what the `devpliance` CLI's `devpliance submit` does: packages the evidence
+directory into a `.tar.gz` in memory and uploads it (multipart) to `POST /api/v1/submissions`,
+authenticated with your repository API key. The server parses each `controls/<id>.md` file
+(frontmatter metadata + sections) and stores the declared control state; the action reports the
+control ids it captured.
 
 ## Usage
 
 ```yaml
-- uses: your-org/devplace-upload-action@v1
-  with:
-    message: 'Hello from CI!'
-    # api-key: ${{ secrets.DEVPLACE_API_KEY }}   # not used yet
+name: DevPliance
+on:
+  push:
+    branches: [main]
+
+jobs:
+  upload-evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: DevPliance/devpliance-upload-action@v1
+        with:
+          api-url: https://acme.devpliance.com          # your DevPliance instance
+          api-key: ${{ secrets.DEVPLIANCE_API_KEY }}    # from the dashboard: Register Repository / Rotate API key
 ```
 
 ## Inputs
 
-| Name      | Required | Default                | Description                              |
-|-----------|----------|-------------------------|-------------------------------------------|
-| `message` | Yes      | `Hello from DevPlace!`  | Placeholder input, will become the upload payload |
-| `api-key` | No       | —                        | Reserved for authenticating the real upload |
+| Input          | Required | Default       | Description |
+| -------------- | -------- | ------------- | ----------- |
+| `api-url`      | yes      | —             | Your DevPliance instance base URL, e.g. `https://acme.devpliance.com`. |
+| `api-key`      | yes      | —             | Repository API key (`dp_key_…`) from the DevPliance dashboard. Store it as a secret. |
+| `evidence-dir` | no       | `.devpliance` | Path to the evidence directory to upload. |
 
 ## Outputs
 
-| Name     | Description                          |
-|----------|---------------------------------------|
-| `result` | Echoes back the `message` input       |
+| Output            | Description |
+| ----------------- | ----------- |
+| `controls`        | Comma-separated control ids captured from the upload. |
+| `controls-parsed` | Number of controls captured. |
 
 ## Development
 
 ```bash
 npm install
-npm run build   # bundles src/main.ts -> dist/index.js via @vercel/ncc
+npm run build   # bundles src/main.ts -> dist/index.js with @vercel/ncc
 ```
 
-`dist/index.js` is what GitHub Actions actually runs — it must be rebuilt
-and committed before every release, since Actions does not run an install/build
-step for you.
-
-### Local smoke test
-
-```bash
-INPUT_MESSAGE="test" node dist/index.js
-```
-
-## Releasing
-
-```bash
-git tag -a v0.1.0 -m "v0.1.0"
-git push origin v0.1.0
-
-# Move the floating major tag so consumers can pin to `@v0`
-git tag -fa v0 -m "Update v0 tag"
-git push origin v0 --force
-```
+The action runs from the committed `dist/`, so commit the rebuilt bundle whenever `src/` changes
+(CI enforces this).
