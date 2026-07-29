@@ -25684,71 +25684,11 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(7484));
 const promises_1 = __nccwpck_require__(1455);
-const node_path_1 = __nccwpck_require__(6760);
-const node_zlib_1 = __nccwpck_require__(8522);
-async function collectEntries(root, dir, entries) {
-    for (const item of await (0, promises_1.readdir)(dir, { withFileTypes: true })) {
-        const abs = (0, node_path_1.join)(dir, item.name);
-        const rel = (0, node_path_1.relative)(root, abs).split(node_path_1.sep).join('/');
-        if (item.isDirectory()) {
-            entries.push({ path: `${rel}/`, isDirectory: true, content: Buffer.alloc(0) });
-            await collectEntries(root, abs, entries);
-        }
-        else if (item.isFile()) {
-            entries.push({ path: rel, isDirectory: false, content: await (0, promises_1.readFile)(abs) });
-        }
-        // Symlinks/special files aren't expected in .devpliance/ and are skipped.
-    }
-}
-function writeOctalField(header, value, offset, length, field) {
-    const octal = value.toString(8);
-    if (octal.length > length - 1) {
-        throw new Error(`tar header field "${field}" overflow: ${value} needs more than ${length - 1} octal digits`);
-    }
-    header.write(octal.padStart(length - 1, '0'), offset, length - 1, 'ascii');
-    header[offset + length - 1] = 0;
-}
-function buildHeader(entry, mtimeSeconds) {
-    if (Buffer.byteLength(entry.path, 'utf8') > 100) {
-        throw new Error(`tar entry path too long for a ustar header (max 100 bytes): "${entry.path}"`);
-    }
-    const header = Buffer.alloc(512);
-    header.write(entry.path, 0, 100, 'utf8');
-    writeOctalField(header, entry.isDirectory ? 0o755 : 0o644, 100, 8, 'mode');
-    writeOctalField(header, 0, 108, 8, 'uid');
-    writeOctalField(header, 0, 116, 8, 'gid');
-    writeOctalField(header, entry.content.length, 124, 12, 'size');
-    writeOctalField(header, mtimeSeconds, 136, 12, 'mtime');
-    header.write('        ', 148, 8, 'ascii'); // checksum placeholder (8 spaces)
-    header.write(entry.isDirectory ? '5' : '0', 156, 1, 'ascii'); // typeflag
-    header.write('ustar\0', 257, 6, 'ascii'); // magic
-    header.write('00', 263, 2, 'ascii'); // version
-    let sum = 0;
-    for (let i = 0; i < 512; i++)
-        sum += header[i];
-    header.write(`${sum.toString(8).padStart(6, '0')}\0 `, 148, 8, 'ascii');
-    return header;
-}
-function padToBlockSize(buf) {
-    const remainder = buf.length % 512;
-    return remainder === 0 ? buf : Buffer.concat([buf, Buffer.alloc(512 - remainder)]);
-}
-async function createTarGz(sourceDir) {
-    const entries = [];
-    await collectEntries(sourceDir, sourceDir, entries);
-    const mtimeSeconds = Math.floor(Date.now() / 1000);
-    const chunks = [];
-    for (const entry of entries) {
-        chunks.push(buildHeader(entry, mtimeSeconds));
-        if (entry.content.length > 0)
-            chunks.push(padToBlockSize(entry.content));
-    }
-    chunks.push(Buffer.alloc(1024)); // two zero blocks mark the end of the archive
-    return (0, node_zlib_1.gzipSync)(Buffer.concat(chunks));
-}
-// ─────────────────────────────────────────────────────────────────────────────
-// Action entry point
-// ─────────────────────────────────────────────────────────────────────────────
+const cli_archive_1 = __nccwpck_require__(2347);
+// This action reuses the devpliance CLI's archive builder (see src/vendor/cli-archive.ts) so the
+// evidence it uploads is byte-identical to `devpliance submit`, and does the same multipart upload
+// to POST /api/v1/submissions. Once the CLI is published to npm, the vendored file is replaced by
+// a dependency on the `devpliance` package.
 async function run() {
     try {
         const apiUrl = core.getInput('api-url', { required: true }).replace(/\/+$/, '');
@@ -25760,7 +25700,7 @@ async function run() {
             return;
         }
         core.info(`Packaging ${evidenceDir}/ ...`);
-        const archive = await createTarGz(evidenceDir);
+        const archive = await (0, cli_archive_1.createTarGz)(evidenceDir);
         core.info(`Archive: devpliance-evidence.tar.gz (${formatBytes(archive.length)})`);
         const url = `${apiUrl}/api/v1/submissions`;
         core.info(`Uploading to ${url} ...`);
@@ -25827,6 +25767,99 @@ function describeFetchError(err) {
     return chain.length ? `${top} (${chain.join(' → ')})` : top;
 }
 run();
+
+
+/***/ }),
+
+/***/ 2347:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.createTarGz = createTarGz;
+// ─────────────────────────────────────────────────────────────────────────────
+// VENDORED from the devpliance CLI — a verbatim copy of `cli/src/lib/archive.ts`
+// in DevPliance/devpliance-frontend-app. Do not edit here; update it in the CLI
+// and re-copy. Once the CLI is published to npm this file is deleted and the
+// action depends on the `devpliance` package instead. Kept byte-identical so the
+// archive this action uploads matches `devpliance submit` exactly.
+// ─────────────────────────────────────────────────────────────────────────────
+const promises_1 = __nccwpck_require__(1455);
+const node_path_1 = __nccwpck_require__(6760);
+const node_zlib_1 = __nccwpck_require__(8522);
+async function collectEntries(root, dir, entries) {
+    const items = await (0, promises_1.readdir)(dir, { withFileTypes: true });
+    for (const item of items) {
+        const abs = (0, node_path_1.join)(dir, item.name);
+        const rel = (0, node_path_1.relative)(root, abs).split(node_path_1.sep).join('/');
+        if (item.isDirectory()) {
+            entries.push({ path: `${rel}/`, isDirectory: true, content: Buffer.alloc(0) });
+            await collectEntries(root, abs, entries);
+        }
+        else if (item.isFile()) {
+            entries.push({ path: rel, isDirectory: false, content: await (0, promises_1.readFile)(abs) });
+        }
+        // Symlinks and other special files aren't expected inside .devpliance/
+        // and are skipped rather than followed or errored on.
+    }
+}
+function writeOctalField(header, value, offset, length, field) {
+    const octal = value.toString(8);
+    if (octal.length > length - 1) {
+        // A classic ustar header field can't represent this value (e.g. a file
+        // over ~8GB in the 12-byte size field) — Buffer.write would otherwise
+        // truncate it silently instead of failing loudly.
+        throw new Error(`tar header field "${field}" overflow: ${value} needs more than ${length - 1} octal digits`);
+    }
+    header.write(octal.padStart(length - 1, '0'), offset, length - 1, 'ascii');
+    header[offset + length - 1] = 0;
+}
+function buildHeader(entry, mtimeSeconds) {
+    if (Buffer.byteLength(entry.path, 'utf8') > 100) {
+        // Classic ustar names are capped at 100 bytes; Buffer.write would
+        // otherwise truncate (and potentially collide with another entry)
+        // without any error.
+        throw new Error(`tar entry path too long for a ustar header (max 100 bytes): "${entry.path}"`);
+    }
+    const header = Buffer.alloc(512);
+    header.write(entry.path, 0, 100, 'utf8');
+    writeOctalField(header, entry.isDirectory ? 0o755 : 0o644, 100, 8, 'mode');
+    writeOctalField(header, 0, 108, 8, 'uid');
+    writeOctalField(header, 0, 116, 8, 'gid');
+    writeOctalField(header, entry.content.length, 124, 12, 'size');
+    writeOctalField(header, mtimeSeconds, 136, 12, 'mtime');
+    header.write('        ', 148, 8, 'ascii'); // chksum placeholder
+    header.write(entry.isDirectory ? '5' : '0', 156, 1, 'ascii'); // typeflag
+    header.write('ustar\0', 257, 6, 'ascii'); // magic
+    header.write('00', 263, 2, 'ascii'); // version
+    let sum = 0;
+    for (let i = 0; i < 512; i++)
+        sum += header[i];
+    header.write(`${sum.toString(8).padStart(6, '0')}\0 `, 148, 8, 'ascii');
+    return header;
+}
+function padToBlockSize(buf) {
+    const remainder = buf.length % 512;
+    if (remainder === 0)
+        return buf;
+    return Buffer.concat([buf, Buffer.alloc(512 - remainder)]);
+}
+/** Packages `sourceDir` into a gzip-compressed tar archive, in memory. */
+async function createTarGz(sourceDir) {
+    const entries = [];
+    await collectEntries(sourceDir, sourceDir, entries);
+    const mtimeSeconds = Math.floor(Date.now() / 1000);
+    const chunks = [];
+    for (const entry of entries) {
+        chunks.push(buildHeader(entry, mtimeSeconds));
+        if (entry.content.length > 0) {
+            chunks.push(padToBlockSize(entry.content));
+        }
+    }
+    chunks.push(Buffer.alloc(1024)); // two zero blocks mark the end of the archive
+    return (0, node_zlib_1.gzipSync)(Buffer.concat(chunks));
+}
 
 
 /***/ }),
