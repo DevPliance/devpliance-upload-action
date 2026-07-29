@@ -1,10 +1,6 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// VENDORED from the devpliance CLI — a verbatim copy of `cli/src/lib/archive.ts`
-// in DevPliance/devpliance-frontend-app. Do not edit here; update it in the CLI
-// and re-copy. Once the CLI is published to npm this file is deleted and the
-// action depends on the `devpliance` package instead. Kept byte-identical so the
-// archive this action uploads matches `devpliance submit` exactly.
-// ─────────────────────────────────────────────────────────────────────────────
+// Packages a .devpliance/ evidence folder into a gzip-compressed tar archive in memory, for upload
+// to POST /api/v1/submissions. No zip/tar dependency — Node's zlib plus a minimal USTAR writer, the
+// same tar.gz layout the devpliance CLI's `submit` produces, so the server accepts it identically.
 import { readdir, readFile } from 'node:fs/promises';
 import { join, relative, sep } from 'node:path';
 import { gzipSync } from 'node:zlib';

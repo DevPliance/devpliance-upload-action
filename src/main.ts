@@ -1,11 +1,9 @@
 import * as core from '@actions/core';
 import { stat } from 'node:fs/promises';
-import { createTarGz } from './vendor/cli-archive';
+import { createTarGz } from './archive';
 
-// This action reuses the devpliance CLI's archive builder (see src/vendor/cli-archive.ts) so the
-// evidence it uploads is byte-identical to `devpliance submit`, and does the same multipart upload
-// to POST /api/v1/submissions. Once the CLI is published to npm, the vendored file is replaced by
-// a dependency on the `devpliance` package.
+// Self-contained: packages the .devpliance/ evidence folder (see ./archive) and uploads it as a
+// multipart POST to /api/v1/submissions — the same request the devpliance CLI's `submit` makes.
 async function run(): Promise<void> {
   try {
     const apiUrl = core.getInput('api-url', { required: true }).replace(/\/+$/, '');

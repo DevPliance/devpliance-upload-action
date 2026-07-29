@@ -25643,148 +25643,16 @@ module.exports = {
 
 /***/ }),
 
-/***/ 1730:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-const core = __importStar(__nccwpck_require__(7484));
-const promises_1 = __nccwpck_require__(1455);
-const cli_archive_1 = __nccwpck_require__(2347);
-// This action reuses the devpliance CLI's archive builder (see src/vendor/cli-archive.ts) so the
-// evidence it uploads is byte-identical to `devpliance submit`, and does the same multipart upload
-// to POST /api/v1/submissions. Once the CLI is published to npm, the vendored file is replaced by
-// a dependency on the `devpliance` package.
-async function run() {
-    try {
-        const apiUrl = core.getInput('api-url', { required: true }).replace(/\/+$/, '');
-        const apiKey = core.getInput('api-key', { required: true });
-        core.setSecret(apiKey);
-        const evidenceDir = core.getInput('evidence-dir') || '.devpliance';
-        if (!(await isDirectory(evidenceDir))) {
-            core.setFailed(`No '${evidenceDir}' directory found — add your .devpliance/ evidence folder to the repo, or set evidence-dir.`);
-            return;
-        }
-        core.info(`Packaging ${evidenceDir}/ ...`);
-        const archive = await (0, cli_archive_1.createTarGz)(evidenceDir);
-        core.info(`Archive: devpliance-evidence.tar.gz (${formatBytes(archive.length)})`);
-        const url = `${apiUrl}/api/v1/submissions`;
-        core.info(`Uploading to ${url} ...`);
-        const form = new FormData();
-        form.append('evidence', new Blob([new Uint8Array(archive)], { type: 'application/gzip' }), 'devpliance-evidence.tar.gz');
-        let res;
-        try {
-            res = await fetch(url, {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${apiKey}` },
-                body: form,
-            });
-        }
-        catch (err) {
-            core.setFailed(`Could not reach ${apiUrl}: ${describeFetchError(err)}`);
-            return;
-        }
-        if (!res.ok) {
-            const body = await res.text().catch(() => '');
-            core.setFailed(`Upload failed: ${res.status} ${res.statusText}${body ? `\n${body}` : ''}`);
-            return;
-        }
-        const data = (await res.json().catch(() => ({})));
-        const controls = Array.isArray(data.controls)
-            ? data.controls.filter((c) => typeof c === 'string')
-            : [];
-        core.info(`✓ Uploaded ${evidenceDir}/ — captured ${controls.length} control(s)`);
-        for (const id of controls)
-            core.info(`  • ${id}`);
-        core.setOutput('controls', controls.join(','));
-        core.setOutput('controls-parsed', String(controls.length));
-    }
-    catch (error) {
-        core.setFailed(error instanceof Error ? error.message : 'DevPliance upload failed with an unknown error');
-    }
-}
-async function isDirectory(p) {
-    try {
-        return (await (0, promises_1.stat)(p)).isDirectory();
-    }
-    catch {
-        return false;
-    }
-}
-function formatBytes(bytes) {
-    if (bytes < 1024)
-        return `${bytes} B`;
-    const kb = bytes / 1024;
-    return kb < 1024 ? `${kb.toFixed(1)} KB` : `${(kb / 1024).toFixed(1)} MB`;
-}
-// fetch() rejects with an opaque "fetch failed" TypeError; the real reason (ECONNRESET, a TLS error,
-// a proxy refusal, etc.) lives in err.cause — often nested. Surface the whole chain.
-function describeFetchError(err) {
-    const top = err instanceof Error ? err.message : String(err);
-    const chain = [];
-    let cur = err.cause;
-    for (let depth = 0; cur && depth < 4; depth++) {
-        const c = cur;
-        const line = [c.code, c.message].filter(Boolean).join(': ');
-        if (line)
-            chain.push(line);
-        cur = c.cause;
-    }
-    return chain.length ? `${top} (${chain.join(' → ')})` : top;
-}
-run();
-
-
-/***/ }),
-
-/***/ 2347:
+/***/ 4473:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.createTarGz = createTarGz;
-// ─────────────────────────────────────────────────────────────────────────────
-// VENDORED from the devpliance CLI — a verbatim copy of `cli/src/lib/archive.ts`
-// in DevPliance/devpliance-frontend-app. Do not edit here; update it in the CLI
-// and re-copy. Once the CLI is published to npm this file is deleted and the
-// action depends on the `devpliance` package instead. Kept byte-identical so the
-// archive this action uploads matches `devpliance submit` exactly.
-// ─────────────────────────────────────────────────────────────────────────────
+// Packages a .devpliance/ evidence folder into a gzip-compressed tar archive in memory, for upload
+// to POST /api/v1/submissions. No zip/tar dependency — Node's zlib plus a minimal USTAR writer, the
+// same tar.gz layout the devpliance CLI's `submit` produces, so the server accepts it identically.
 const promises_1 = __nccwpck_require__(1455);
 const node_path_1 = __nccwpck_require__(6760);
 const node_zlib_1 = __nccwpck_require__(8522);
@@ -25860,6 +25728,132 @@ async function createTarGz(sourceDir) {
     chunks.push(Buffer.alloc(1024)); // two zero blocks mark the end of the archive
     return (0, node_zlib_1.gzipSync)(Buffer.concat(chunks));
 }
+
+
+/***/ }),
+
+/***/ 1730:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const core = __importStar(__nccwpck_require__(7484));
+const promises_1 = __nccwpck_require__(1455);
+const archive_1 = __nccwpck_require__(4473);
+// Self-contained: packages the .devpliance/ evidence folder (see ./archive) and uploads it as a
+// multipart POST to /api/v1/submissions — the same request the devpliance CLI's `submit` makes.
+async function run() {
+    try {
+        const apiUrl = core.getInput('api-url', { required: true }).replace(/\/+$/, '');
+        const apiKey = core.getInput('api-key', { required: true });
+        core.setSecret(apiKey);
+        const evidenceDir = core.getInput('evidence-dir') || '.devpliance';
+        if (!(await isDirectory(evidenceDir))) {
+            core.setFailed(`No '${evidenceDir}' directory found — add your .devpliance/ evidence folder to the repo, or set evidence-dir.`);
+            return;
+        }
+        core.info(`Packaging ${evidenceDir}/ ...`);
+        const archive = await (0, archive_1.createTarGz)(evidenceDir);
+        core.info(`Archive: devpliance-evidence.tar.gz (${formatBytes(archive.length)})`);
+        const url = `${apiUrl}/api/v1/submissions`;
+        core.info(`Uploading to ${url} ...`);
+        const form = new FormData();
+        form.append('evidence', new Blob([new Uint8Array(archive)], { type: 'application/gzip' }), 'devpliance-evidence.tar.gz');
+        let res;
+        try {
+            res = await fetch(url, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${apiKey}` },
+                body: form,
+            });
+        }
+        catch (err) {
+            core.setFailed(`Could not reach ${apiUrl}: ${describeFetchError(err)}`);
+            return;
+        }
+        if (!res.ok) {
+            const body = await res.text().catch(() => '');
+            core.setFailed(`Upload failed: ${res.status} ${res.statusText}${body ? `\n${body}` : ''}`);
+            return;
+        }
+        const data = (await res.json().catch(() => ({})));
+        const controls = Array.isArray(data.controls)
+            ? data.controls.filter((c) => typeof c === 'string')
+            : [];
+        core.info(`✓ Uploaded ${evidenceDir}/ — captured ${controls.length} control(s)`);
+        for (const id of controls)
+            core.info(`  • ${id}`);
+        core.setOutput('controls', controls.join(','));
+        core.setOutput('controls-parsed', String(controls.length));
+    }
+    catch (error) {
+        core.setFailed(error instanceof Error ? error.message : 'DevPliance upload failed with an unknown error');
+    }
+}
+async function isDirectory(p) {
+    try {
+        return (await (0, promises_1.stat)(p)).isDirectory();
+    }
+    catch {
+        return false;
+    }
+}
+function formatBytes(bytes) {
+    if (bytes < 1024)
+        return `${bytes} B`;
+    const kb = bytes / 1024;
+    return kb < 1024 ? `${kb.toFixed(1)} KB` : `${(kb / 1024).toFixed(1)} MB`;
+}
+// fetch() rejects with an opaque "fetch failed" TypeError; the real reason (ECONNRESET, a TLS error,
+// a proxy refusal, etc.) lives in err.cause — often nested. Surface the whole chain.
+function describeFetchError(err) {
+    const top = err instanceof Error ? err.message : String(err);
+    const chain = [];
+    let cur = err.cause;
+    for (let depth = 0; cur && depth < 4; depth++) {
+        const c = cur;
+        const line = [c.code, c.message].filter(Boolean).join(': ');
+        if (line)
+            chain.push(line);
+        cur = c.cause;
+    }
+    return chain.length ? `${top} (${chain.join(' → ')})` : top;
+}
+run();
 
 
 /***/ }),
