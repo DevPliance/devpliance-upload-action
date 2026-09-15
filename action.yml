@@ -1,29 +1,46 @@
-name: 'DevPliance Upload'
-description: 'Upload .devpliance compliance evidence to DevPliance from CI/CD'
-author: 'DevPliance'
+name: 'Devpliance AI control review'
+description: 'Review policy-selected committed evidence and retain the exact run for human review'
+author: 'Devpliance'
 
 inputs:
   api-url:
-    description: 'DevPliance API base URL for your instance, e.g. https://acme.devpliance.com'
+    description: 'This Devpliance instance origin, for example https://your-instance.devpliance.com'
     required: true
   api-key:
-    description: 'Repository API key from the DevPliance dashboard (dp_key_...)'
+    description: 'Repository API key'
     required: true
   evidence-dir:
-    description: 'Path to the .devpliance evidence directory'
-    required: false
+    description: 'Fallback evidence directory when there is no committed policy'
     default: '.devpliance'
+  dry-run:
+    description: 'Preview selection without uploading evidence or calling AI'
+    default: 'false'
+  fail-on-non-compliance:
+    description: 'Fallback enforcement without a policy; explicit committed policy always takes precedence'
+    default: 'true'
+  poll-interval-ms:
+    description: 'Polling interval in milliseconds'
+    default: '5000'
+  poll-timeout-ms:
+    description: 'Maximum wait in milliseconds; the retained run remains accessible after timeout'
+    default: '300000'
 
 outputs:
-  controls:
-    description: 'Comma-separated control ids captured from the upload'
-  controls-parsed:
-    description: 'Number of controls captured'
+  result:
+    description: >-
+      Review result for this commit: 'pass', 'fail', 'unavailable' or 'preview'. Reporting mode
+      never changes this result.
+  failing-controls:
+    description: 'Comma-separated selected controls needing attention'
+  run-id:
+    description: 'Exact retained review identifier'
+  review-url:
+    description: 'Link to source evidence, human review and export'
 
 runs:
   using: 'node20'
   main: 'dist/index.js'
 
 branding:
-  icon: 'upload-cloud'
-  color: 'purple'
+  icon: 'shield'
+  color: 'blue'

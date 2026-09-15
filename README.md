@@ -1,59 +1,76 @@
-# DevPliance Upload Action
+# Devpliance CLI and retained-review Action
 
-A monorepo containing the **`devpliance` CLI** and a **GitHub Action** that uploads your
-`.devpliance/` compliance evidence to DevPliance from CI/CD.
+This monorepo contains the `devpliance` CLI and the canonical GitHub Action used to review
+policy-selected, committed repository evidence in Devpliance.
 
-- **`cli/`** — the `devpliance` CLI package (`login`, `init`, `submit`, …). Its own npm-publishable
-  package; the source of truth for the archive/upload logic.
-- **root** — the GitHub Action. It imports the CLI package (`devpliance/archive`) and does exactly
-  what `devpliance submit` does — packages the evidence dir into a `.tar.gz` and uploads it
-  (multipart) to `POST /api/v1/submissions`. The server parses each `controls/<id>.md`
-  (frontmatter metadata + sections) and stores the declared control state; the action reports the
-  control ids captured. No copy — one implementation, shared.
+- `cli/` scaffolds and submits `.devpliance/` evidence for the legacy declaration workflow.
+- The repository root is the retained-review GitHub Action. It previews the committed policy,
+  uploads the exact head and optional pull-request base commits, polls the retained run, and links
+  CI back to the review and export screen.
 
-## Usage
+## GitHub Action usage
+
+Register the repository in Devpliance, save its repository key as the Actions secret
+`DEVPLIANCE_API_KEY`, and pin the Action to a full released commit SHA:
 
 ```yaml
-name: DevPliance
-on:
-  push:
-    branches: [main]
+name: Devpliance evidence review
+on: [push, pull_request, workflow_dispatch]
+
+permissions:
+  contents: read
 
 jobs:
-  upload-evidence:
+  review:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: DevPliance/devpliance-upload-action@v1
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          api-url: https://acme.devpliance.com          # your DevPliance instance
-          api-key: ${{ secrets.DEVPLIANCE_API_KEY }}    # from the dashboard: Register Repository / Rotate API key
+          fetch-depth: 0
+      - uses: devpliance/devpliance-upload-action@REPLACE_WITH_FULL_COMMIT_SHA
+        with:
+          api-url: https://your-instance.devpliance.com
+          api-key: ${{ secrets.DEVPLIANCE_API_KEY }}
 ```
 
-## Inputs
+The Action reads files from committed Git objects; uncommitted files, symlinks, and submodules are
+not uploaded as evidence. With `.devpliance/policy.yml`, the committed policy selects controls,
+evidence paths, and `report` or `enforce` mode. Without a policy, `evidence-dir` is the legacy
+fallback selection.
 
-| Input          | Required | Default       | Description |
-| -------------- | -------- | ------------- | ----------- |
-| `api-url`      | yes      | —             | Your DevPliance instance base URL, e.g. `https://acme.devpliance.com`. |
-| `api-key`      | yes      | —             | Repository API key (`dp_key_…`) from the DevPliance dashboard. Store it as a secret. |
-| `evidence-dir` | no       | `.devpliance` | Path to the evidence directory to upload. |
+Use `dry-run: true` to preview selected paths without uploading an archive or starting an AI review.
 
-## Outputs
+### Inputs
 
-| Output            | Description |
-| ----------------- | ----------- |
-| `controls`        | Comma-separated control ids captured from the upload. |
-| `controls-parsed` | Number of controls captured. |
+| Input | Required | Default | Description |
+| --- | --- | --- | --- |
+| `api-url` | yes | — | Devpliance instance origin. |
+| `api-key` | yes | — | Repository API key. |
+| `evidence-dir` | no | `.devpliance` | Legacy fallback evidence directory. |
+| `dry-run` | no | `false` | Preview without uploading or reviewing. |
+| `fail-on-non-compliance` | no | `true` | Legacy fallback enforcement; an explicit policy wins. |
+| `poll-interval-ms` | no | `5000` | Review polling interval. |
+| `poll-timeout-ms` | no | `300000` | Maximum time to wait for a result. |
+
+### Outputs
+
+| Output | Description |
+| --- | --- |
+| `result` | `pass`, `fail`, `unavailable`, or `preview`. |
+| `failing-controls` | Comma-separated controls needing attention. |
+| `run-id` | Retained review identifier. |
+| `review-url` | Link to the retained review. |
 
 ## Development
 
 ```bash
-npm install       # installs the workspace (root action + cli/ package)
-npm run build     # builds cli/ (tsc), then bundles the action -> dist/index.js with @vercel/ncc
+npm ci
+npm test
+npm run build
 ```
 
-The action runs from the committed `dist/`, so commit the rebuilt bundle whenever `src/` or the CLI
-changes (CI enforces this). `cli/dist/` is a build artifact and is not committed.
+`npm run build` compiles the CLI and rebuilds the committed `dist/index.js` Action bundle. Commit
+the bundle whenever Action source or dependencies change.
 
-To publish the CLI to npm: `cd cli && npm publish` (after `npm run build`).
+The canonical CLI source lives under `cli/`. To test it globally, build it and run `npm link` from
+that directory. See `cli/README.md` for the full CLI workflow.
