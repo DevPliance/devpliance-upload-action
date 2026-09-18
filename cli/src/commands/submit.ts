@@ -1,5 +1,7 @@
+import { execFile } from "node:child_process";
 import { stat } from "node:fs/promises";
 import { join } from "node:path";
+import { promisify } from "node:util";
 import pc from "picocolors";
 import { wordmark } from "../banner.js";
 import { readCredentials } from "../lib/credentials.js";
@@ -7,6 +9,7 @@ import { createTarGz } from "../lib/archive.js";
 import { DEVPLIANCE_DIR } from "./init.js";
 
 const SUBMISSIONS_PATH = "/api/v1/submissions";
+const execFileAsync = promisify(execFile);
 const ARCHIVE_NAME = "devpliance-evidence.tar.gz";
 
 export async function submit(): Promise<void> {
@@ -31,7 +34,13 @@ export async function submit(): Promise<void> {
   const url = `${creds.baseUrl}${SUBMISSIONS_PATH}`;
   process.stdout.write(pc.dim(`Uploading to ${url} ...\n`));
 
+  // An upload is a review of one commit, and Devpliance refuses one that cannot name it.
+  const sha = await resolveCommitSha();
+  process.stdout.write(pc.dim(`Commit: ${sha}
+`));
+
   const form = new FormData();
+  form.append("sha", sha);
   form.append(
     "evidence",
     // Buffer's backing ArrayBufferLike admits SharedArrayBuffer, which
@@ -81,6 +90,27 @@ export async function submit(): Promise<void> {
     for (const id of controls) {
       process.stdout.write(`  ${pc.cyan("•")} ${id}\n`);
     }
+  }
+}
+
+/**
+ * The commit this evidence describes. Read from git rather than asked for: the answer is already on
+ * disk, and a well-formed but wrong SHA is accepted silently and corrupts the audit trail.
+ */
+async function resolveCommitSha(): Promise<string> {
+  try {
+    const { stdout } = await execFileAsync("git", ["rev-parse", "HEAD"]);
+    const sha = stdout.trim();
+    if (!/^[0-9a-f]{40}$|^[0-9a-f]{64}$/i.test(sha)) {
+      fail(`git rev-parse HEAD returned "${sha}", which is not a commit hash.`);
+    }
+    return sha;
+  } catch (err) {
+    fail(
+      `Could not read the current commit: ${err instanceof Error ? err.message : String(err)}
+` +
+        "Devpliance reviews a specific commit, so evidence has to be submitted from a git checkout."
+    );
   }
 }
 

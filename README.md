@@ -3,7 +3,9 @@
 This monorepo contains the `devpliance` CLI and the canonical GitHub Action used to review
 policy-selected, committed repository evidence in Devpliance.
 
-- `cli/` scaffolds and submits `.devpliance/` evidence for the legacy declaration workflow.
+- `cli/` scaffolds and submits `.devpliance/` evidence by hand, for a repository that has no
+  workflow yet. There is no separate declaration upload any more: the CLI posts to the same route
+  the Action does, so a `devpliance submit` is a review of the checked-out commit.
 - The repository root is the retained-review GitHub Action. It previews the committed policy,
   uploads the exact head and optional pull-request base commits, polls the retained run, and links
   CI back to the review and export screen.
