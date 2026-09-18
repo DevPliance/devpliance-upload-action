@@ -34,14 +34,17 @@ function submit(apiUrl, apiKey, zip, sha, baseZip, baseSha, fetchFn = fetch) {
     body.append('base_sha', baseSha);
     body.append('base_evidence', new Blob([baseZip], { type: 'application/zip' }), 'base-evidence.zip');
   }
-  return request(apiUrl + '/api/v1/submissions/reviews', apiKey, { method: 'POST', body }, fetchFn);
+  // One upload route: /submissions is the review. It used to be /submissions/reviews, while
+  // /submissions took the same archive and only recorded declarations — same request, two amounts
+  // of judgement, and the caller had to know which it wanted.
+  return request(apiUrl + '/api/v1/submissions', apiKey, { method: 'POST', body }, fetchFn);
 }
 
 async function poll(apiUrl, apiKey, runId, intervalMs, timeoutMs, fetchFn = fetch) {
   if (!/^[a-f0-9-]{36}$/i.test(runId)) throw new Error('The server did not return a valid run ID.');
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    const result = await request(apiUrl + '/api/v1/submissions/reviews/' + runId, apiKey, {}, fetchFn);
+    const result = await request(apiUrl + '/api/v1/submissions/runs/' + runId, apiKey, {}, fetchFn);
     if (result.runId !== runId) throw new Error('The status response belongs to a different review.');
     if (['complete', 'unavailable'].includes(result.status)) return result;
     if (result.status !== 'processing') throw new Error('The server returned an unknown review state.');

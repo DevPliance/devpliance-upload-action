@@ -58,13 +58,13 @@ describe('retained-run client contract', () => {
         await client.submit('https://tenant.example', 'dp_key_test', Buffer.from('head'), 'b'.repeat(40),
             Buffer.from('base'), 'a'.repeat(40), fetchFn)
         const [url, options] = fetchFn.mock.calls[0]
-        expect(url).toBe('https://tenant.example/api/v1/submissions/reviews')
+        expect(url).toBe('https://tenant.example/api/v1/submissions')
         expect(options.body.get('sha')).toBe('b'.repeat(40))
         expect(options.body.get('base_sha')).toBe('a'.repeat(40))
         expect(options.body.get('base_evidence')).toBeTruthy()
         const pollFetch = vi.fn().mockResolvedValue(response({ runId: RUN_ID, status: 'complete', result: 'fail' }))
         await client.poll('https://tenant.example', 'dp_key_test', RUN_ID, 100, 1000, pollFetch)
-        expect(pollFetch.mock.calls[0][0]).toBe('https://tenant.example/api/v1/submissions/reviews/' + RUN_ID)
+        expect(pollFetch.mock.calls[0][0]).toBe('https://tenant.example/api/v1/submissions/runs/' + RUN_ID)
     })
 
     it('rejects a response for a different retry and malformed passing results', async () => {
